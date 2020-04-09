@@ -1,0 +1,36 @@
+{
+  "name": "plugin-master/db",
+  "description": "The query builder for WordPress",
+  "license": "MIT",
+  "homepage": "https://github.com/emrancu/PluginMaster-DB",
+  "support": {
+    "issues": "https://github.com/emrancu/PluginMaster-DB/issues",
+    "source": "https://github.com/emrancu/PluginMaster-DB"
+  },
+  "authors": [
+    {
+      "name": "AL EMRAN",
+      "email": "emrancu1@gmail.com"
+    }
+  ],
+  "keywords": [
+    "Request",
+    "Query builder for WordPress",
+    "WordPress Query Builder",
+    "PluginMaster Query Builder",
+    "WordPress Plugin Development framework"
+  ],
+  "autoload": {
+    "classmap": [],
+    "psr-4": {
+      "PluginMaster\\DB\\": "src/"
+    }
+  },
+  "require": {
+    "php": ">=7.0.0"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+
+  }
+
