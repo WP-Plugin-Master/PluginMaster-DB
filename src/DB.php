@@ -17,7 +17,10 @@ class DB implements BuilderBase
     private $groupQuery = '';
     private $closerSession = false;
     private $closerCounter;
+    private $join;
     private $sql;
+    private $joinClosure;
+    private $joinOn = '';
 
     /**
      * DB constructor.
@@ -38,6 +41,7 @@ class DB implements BuilderBase
         $self = self::getInstance();
         $self->table = $self->table_prefix . $name;
         $self->whereValues = [];
+        $self->join = '';
         return $self;
     }
 
@@ -52,6 +56,95 @@ class DB implements BuilderBase
 
         return self::$instance;
     }
+
+    /**
+     * @param $table
+     * @param $first
+     * @param null $operator
+     * @param null $second
+     * @return mixed|DB
+     */
+    public function join($table, $first, $operator = null, $second = null)
+    {
+        if ($first instanceof \Closure) {
+            $this->joinClosure = true;
+            $this->join .= ' INNER JOIN ' . $this->table_prefix . $table . ' ON ';
+            call_user_func($first, self::getInstance());
+            $this->join .= $this->joinOn;
+            $this->joinClosure = false;
+        } else {
+            $this->join .= ' INNER JOIN ' . $this->table_prefix . $table . ' ON ' . $first . ' ' . $operator . ' ' . $second . ' ';
+        }
+
+        return self::getInstance();
+    }
+
+
+    /**
+     * @param $table
+     * @param $first
+     * @param null $operator
+     * @param null $second
+     * @return mixed|DB
+     */
+    public function leftJoin($table, $first, $operator = null, $second = null)
+    {
+        if ($first instanceof \Closure) {
+            $this->joinClosure = true;
+            $this->join .= ' LEFT JOIN ' . $this->table_prefix . $table . ' ON ';
+            call_user_func($first, self::getInstance());
+            $this->join .= $this->joinOn;
+            $this->joinClosure = false;
+        } else {
+            $this->join .= ' LEFT JOIN ' . $this->table_prefix . $table . ' ON ' . $first . ' ' . $operator . ' ' . $second . ' ';
+        }
+
+        return self::getInstance();
+    }
+
+
+    /**
+     * @param $first
+     * @param $operator
+     * @param $second
+     * @return mixed
+     */
+    public function on($first, $operator, $second)
+    {
+        $this->joinOn .= ($this->joinOn ? ' AND ' : '') . $first . ' ' . $operator . ' ' . $second;
+        return self::$instance;
+    }
+
+    /**
+     * @param $first
+     * @param $operator
+     * @param $second
+     * @return mixed
+     */
+    public function orOn($first, $operator, $second)
+    {
+        $this->joinOn .= ($this->joinOn ? ' OR ' : '') . $first . ' ' . $operator . ' ' . $second;
+        return self::$instance;
+    }
+
+    /**
+     * @param $column
+     * @param null $operator
+     * @param null $value
+     * @return mixed
+     */
+    public function onWhere($column, $operator = null, $value = null)
+    {
+        if (!$value) {
+            $value = $operator;
+            $operator = ' = ';
+        }
+
+        $this->joinOn .= ($this->joinOn ? ' AND ' : '') . $column . ' ' . $operator . ' %s ';
+        array_push($this->whereValues, (string)$value);
+        return self::$instance;
+    }
+
 
     /**
      * @param $column
@@ -109,7 +202,6 @@ class DB implements BuilderBase
             $this->whereClause .= '`' . $column . '` ' . $finalOperator . ' %s';
             array_push($this->whereValues, (string)$finalValue);
             $this->closerCounter++;
-
         }
 
         return self::getInstance();
@@ -150,7 +242,6 @@ class DB implements BuilderBase
             $fields .= '`' . $key . '`,';
             $values .= '%s,';
             array_push($this->whereValues, $value);
-
         }
 
         $this->sql = "INSERT INTO `" . $this->table . "` (" . substr($fields, 0, -1) . ") VALUES(" . substr($values, 0, -1) . ")";
@@ -186,7 +277,6 @@ class DB implements BuilderBase
 
             $fields .= '`' . $key . '` = %s,';
             array_push($this->whereValues, $value);
-
         }
 
         $this->whereValues = array_merge($this->whereValues, $prevWhereValues);
@@ -224,7 +314,7 @@ class DB implements BuilderBase
      */
     private function getSelectQuery()
     {
-        $this->sql = "SELECT " . $this->selectQuery . " FROM $this->table " . $this->whereClause . $this->groupQuery . $this->orderQuery;
+        $this->sql = "SELECT " . $this->selectQuery . " FROM $this->table " . $this->join . $this->whereClause . $this->groupQuery . $this->orderQuery;
         return $this->sql;
     }
 
@@ -244,5 +334,4 @@ class DB implements BuilderBase
     {
         return $this->sql ? $this->sql : $this->getSelectQuery();
     }
-
 }
