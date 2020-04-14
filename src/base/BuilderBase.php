@@ -98,6 +98,21 @@ interface BuilderBase
     /**
      * @return mixed
      */
+    public static function startTransaction();
+
+    /**
+     * @return mixed
+     */
+    public static function commitTransaction();
+
+    /**
+     * @return mixed
+     */
+    public static function rollbackTransaction();
+
+    /**
+     * @return mixed
+     */
     public function delete();
 
     /**

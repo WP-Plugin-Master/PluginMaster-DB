@@ -58,6 +58,33 @@ class DB implements BuilderBase
     }
 
     /**
+     * @param $where
+     * @return false|int
+     */
+    public static function startTransaction()
+    {
+        return self::getInstance()->connection->query('START TRANSACTION');
+    }
+
+    /**
+     * @param $where
+     * @return false|int
+     */
+    public static function commitTransaction()
+    {
+        return self::getInstance()->connection->query('COMMIT');
+    }
+
+    /**
+     * @param $where
+     * @return false|int
+     */
+    public static function rollbackTransaction()
+    {
+        return self::getInstance()->connection->query('ROLLBACK');
+    }
+
+    /**
      * @param $table
      * @param $first
      * @param null $operator
@@ -78,7 +105,6 @@ class DB implements BuilderBase
 
         return self::getInstance();
     }
-
 
     /**
      * @param $table
@@ -101,7 +127,6 @@ class DB implements BuilderBase
 
         return self::getInstance();
     }
-
 
     /**
      * @param $first
@@ -144,7 +169,6 @@ class DB implements BuilderBase
         array_push($this->whereValues, (string)$value);
         return self::$instance;
     }
-
 
     /**
      * @param $column
