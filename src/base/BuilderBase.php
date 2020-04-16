@@ -12,6 +12,13 @@ interface BuilderBase
      */
     static public function table($name);
 
+
+    /**
+     * @param $closer
+     * @return mixed
+     */
+    static public function transaction($closer);
+
     /**
      * @param $column
      * @param null $operator
@@ -76,6 +83,27 @@ interface BuilderBase
      * @return mixed
      */
     public function orderBy($columns, $direction);
+
+
+    /**
+     * @param $number
+     * @return mixed
+     */
+    public function limit($number);
+
+
+    /**
+     * @param $number
+     * @return mixed
+     */
+    public function offset($number);
+
+
+    /**
+     * @param $number
+     * @return mixed
+     */
+    public function groupBy($number);
 
     /**
      * @param $fields

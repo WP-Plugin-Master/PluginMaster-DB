@@ -3,25 +3,30 @@
 namespace PluginMaster\DB;
 
 use PluginMaster\DB\base\BuilderBase;
-use PluginMaster\DB\utilities\exceptionHandler;
-use PluginMaster\DB\utilities\othersClause;
-use PluginMaster\DB\utilities\selectClause;
-use PluginMaster\DB\utilities\whereClause;
-use PluginMaster\DB\utilities\joinClause;
+use PluginMaster\DB\exception\ExceptionHandler;
 
 class DB implements BuilderBase
 {
 
-    use whereClause;
-    use joinClause;
-    use exceptionHandler;
-    use othersClause;
-    use selectClause;
+    use ExceptionHandler;
 
     protected $table;
     protected $sql;
     protected $table_prefix;
     protected $connection;
+    protected $whereValues = [];
+    protected $whereClause = '';
+    protected $closerCounter;
+    protected $closerSession = false;
+    protected $selectQuery = ' * ';
+    protected $orderQuery = '';
+    protected $groupQuery = '';
+    protected $limitQuery = '';
+    protected $offsetQuery = '';
+    protected $join;
+    protected $joinClosure;
+    protected $joinOn = '';
+
 
     /**
      * DB constructor.
@@ -68,24 +73,234 @@ class DB implements BuilderBase
         }
     }
 
+
+    /**
+     * @param $fields
+     * @return DB
+     */
+    public function select($fields)
+    {
+        $this->selectQuery = " " . $fields . " ";
+        return $this;
+    }
+
+
+    /**
+     * @param $table
+     * @param $first
+     * @param null $operator
+     * @param null $second
+     * @return mixed|DB
+     */
+    public function join($table, $first, $operator = null, $second = null)
+    {
+        if ($first instanceof \Closure) {
+            $this->joinClosure = true;
+            $this->join .= ' INNER JOIN ' . $this->table_prefix . $table . ' ON ';
+            call_user_func($first, $this);
+            $this->join .= $this->joinOn;
+            $this->joinClosure = false;
+        } else {
+            $this->join .= ' INNER JOIN ' . $this->table_prefix . $table . ' ON ' . $first . ' ' . $operator . ' ' . $second . ' ';
+        }
+        return $this;
+    }
+
+    /**
+     * @param $table
+     * @param $first
+     * @param null $operator
+     * @param null $second
+     * @return mixed|DB
+     */
+    public function leftJoin($table, $first, $operator = null, $second = null)
+    {
+        if ($first instanceof \Closure) {
+            $this->joinClosure = true;
+            $this->join .= ' LEFT JOIN ' . $this->table_prefix . $table . ' ON ';
+            call_user_func($first, $this);
+            $this->join .= $this->joinOn;
+            $this->joinClosure = false;
+        } else {
+            $this->join .= ' LEFT JOIN ' . $this->table_prefix . $table . ' ON ' . $first . ' ' . $operator . ' ' . $second . ' ';
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param $first
+     * @param $operator
+     * @param $second
+     * @return mixed
+     */
+    public function on($first, $operator, $second)
+    {
+        $this->joinOn .= ($this->joinOn ? ' AND ' : '') . $first . ' ' . $operator . ' ' . $second;
+        return $this;
+    }
+
+    /**
+     * @param $first
+     * @param $operator
+     * @param $second
+     * @return mixed
+     */
+    public function orOn($first, $operator, $second)
+    {
+        $this->joinOn .= ($this->joinOn ? ' OR ' : '') . $first . ' ' . $operator . ' ' . $second;
+        return $this;
+    }
+
+    /**
+     * @param $column
+     * @param null $operator
+     * @param null $value
+     * @return mixed
+     */
+    public function onWhere($column, $operator = null, $value = null)
+    {
+        if (!$value) {
+            $value = $operator;
+            $operator = ' = ';
+        }
+
+        $this->joinOn .= ($this->joinOn ? ' AND ' : '') . $column . ' ' . $operator . ' %s ';
+        array_push($this->whereValues, (string)$value);
+        return $this;
+    }
+
+
+    /**
+     * @param $column
+     * @param null $operator
+     * @param null $value
+     * @return DB
+     */
+    public function where($column, $operator = null, $value = null)
+    {
+
+        $finalOperator = $value ? $operator : '=';
+        $finalValue = $value ? $value : $operator;
+
+        if ($column instanceof \Closure) {
+            $this->closerSession = true;
+            $this->closerCounter = 1;
+            $this->whereClause .= ($this->whereClause ? ' AND (' : ' where (');
+            call_user_func($column, $this);
+            $this->whereClause .= ')';
+            $this->closerSession = false;
+            $this->closerCounter = 0;
+        } else {
+            $this->whereClause .= $this->closerSession && $this->closerCounter == 1 ? '' : ($this->whereClause ? ' AND ' : ' where ');
+            $this->whereClause .= '`' . $column . '` ' . $finalOperator . ' %s';
+            array_push($this->whereValues, (string)$finalValue);
+            $this->closerCounter++;
+        }
+        return $this;
+    }
+
+    /**
+     * @param $column
+     * @param null $operator
+     * @param null $value
+     * @return DB
+     */
+    public function orWhere($column, $operator = null, $value = null)
+    {
+        $finalOperator = $value ? $operator : '=';
+        $finalValue = $value ? $value : $operator;
+
+        if ($column instanceof \Closure) {
+            $this->closerSession = true;
+            $this->closerCounter = 1;
+            $this->whereClause .= ($this->whereClause ? ' OR (' : ' where (');
+            call_user_func($column, $this);
+            $this->whereClause .= ')';
+            $this->closerSession = false;
+            $this->closerCounter = 0;
+        } else {
+            $this->whereClause .= $this->closerSession && $this->closerCounter == 1 ? '' : ($this->whereClause ? ' OR ' : ' where ');
+            $this->whereClause .= '`' . $column . '` ' . $finalOperator . ' %s';
+            array_push($this->whereValues, (string)$finalValue);
+            $this->closerCounter++;
+        }
+
+        return $this;
+    }
+
+
+    /**
+     * @param $query
+     */
+    public function whereRaw($query)
+    {
+        $this->whereClause .= $this->closerSession && $this->closerCounter == 1 ? ' ' : ($this->whereClause ? ' AND ' : ' where ');
+        $this->whereClause .= $query;
+    }
+
+    /**
+     * @param $query
+     */
+    public function orWhereRaw($query)
+    {
+        $this->whereClause .= $this->closerSession && $this->closerCounter == 1 ? ' ' : ($this->whereClause ? ' OR ' : ' where ');
+        $this->whereClause .= $query;
+    }
+
+
+    /**
+     * @param $number
+     * @return $this
+     */
+    public function limit($number)
+    {
+        $this->limitQuery = " LIMIT $number ";
+        return $this;
+    }
+
+
+    /**
+     * @param $number
+     * @return $this
+     */
+    public function offset($number)
+    {
+        $this->offsetQuery = " OFFSET $number ";
+        return $this;
+    }
+
+
+    /**
+     * @param $columns | columns with comma separator
+     * @param $direction
+     * @return DB
+     */
+    public function orderBy($columns, $direction)
+    {
+        $this->orderQuery = " ORDER BY " . $columns . " " . $direction;
+        return $this;
+    }
+
+    /**
+     * @param $columns | columns with comma separator
+     * @param $direction
+     * @return DB
+     */
+    public function groupBy($columns)
+    {
+        $this->orderQuery = " GROUP BY " . $columns . " ";
+        return $this;
+    }
+
+
     /**
      * @param $data
      * @return false|int
      */
     public function insert($data)
     {
-        $fields = '';
-        $values = '';
-        $this->whereValues = [];
-        foreach ($data as $key => $value) {
-
-            $fields .= '`' . $key . '`,';
-            $values .= '%s,';
-            array_push($this->whereValues, $value);
-        }
-
-        $this->sql = "INSERT INTO `" . $this->table . "` (" . substr($fields, 0, -1) . ") VALUES(" . substr($values, 0, -1) . ")";
-
+        $this->buildInsertQuery($data);
         $sql = $this->getPreparedSql();
 
         try {
@@ -100,6 +315,24 @@ class DB implements BuilderBase
 
     }
 
+
+    /**
+     * @param $data
+     */
+    private function buildInsertQuery($data)
+    {
+        $fields = '';
+        $values = '';
+        $this->whereValues = [];
+        foreach ($data as $key => $value) {
+            $fields .= '`' . $key . '`,';
+            $values .= '%s,';
+            array_push($this->whereValues, $value);
+        }
+
+        $this->sql = "INSERT INTO `" . $this->table . "` (" . substr($fields, 0, -1) . ") VALUES(" . substr($values, 0, -1) . ")";
+    }
+
     /**
      * @param $query
      * @param $values
@@ -110,6 +343,7 @@ class DB implements BuilderBase
         return $this->connection->prepare($this->sql, $this->whereValues);
     }
 
+
     /**
      * @param $data
      * @param $where
@@ -117,17 +351,7 @@ class DB implements BuilderBase
      */
     public function update($data)
     {
-        $fields = '';
-        $prevWhereValues = $this->whereValues;
-        $this->whereValues = [];
-        foreach ($data as $key => $value) {
-            $fields .= '`' . $key . '` = %s,';
-            array_push($this->whereValues, $value);
-        }
-
-        $this->whereValues = array_merge($this->whereValues, $prevWhereValues);
-
-        $this->sql = "UPDATE `" . $this->table . "` SET " . substr($fields, 0, -1) . $this->whereClause;
+        $this->buildUpdateQuery($data);
 
         $sql = $this->getPreparedSql();
 
@@ -141,6 +365,26 @@ class DB implements BuilderBase
             $this->exceptionHandler();
         }
     }
+
+
+    /**
+     * @param $data
+     */
+    private function buildUpdateQuery($data)
+    {
+        $fields = '';
+        $prevWhereValues = $this->whereValues;
+        $this->whereValues = [];
+        foreach ($data as $key => $value) {
+            $fields .= '`' . $key . '` = %s,';
+            array_push($this->whereValues, $value);
+        }
+
+        $this->whereValues = array_merge($this->whereValues, $prevWhereValues);
+
+        $this->sql = "UPDATE `" . $this->table . "` SET " . substr($fields, 0, -1) . $this->whereClause;
+    }
+
 
     /**
      * @param $where
@@ -185,7 +429,7 @@ class DB implements BuilderBase
      */
     private function getSelectQuery()
     {
-        $this->sql = "SELECT " . $this->selectQuery . " FROM $this->table " . $this->join . $this->whereClause . $this->groupQuery . $this->orderQuery.$this->limitQuery.$this->offsetQuery;
+        $this->sql = "SELECT " . $this->selectQuery . " FROM $this->table " . $this->join . $this->whereClause . $this->groupQuery . $this->orderQuery . $this->limitQuery . $this->offsetQuery;
         return $this->sql;
     }
 

@@ -1,10 +1,10 @@
 <?php
 
 
-namespace PluginMaster\DB\utilities;
+namespace PluginMaster\DB\exception;
 
 
-trait exceptionHandler
+trait ExceptionHandler
 {
 
     public function exceptionHandler()
@@ -17,6 +17,6 @@ trait exceptionHandler
         exit;
     }
 
-     
+
 
 }
