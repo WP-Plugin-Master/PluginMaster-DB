@@ -9,10 +9,9 @@ use PluginMaster\DB\utilities\selectClause;
 use PluginMaster\DB\utilities\whereClause;
 use PluginMaster\DB\utilities\joinClause;
 
-class DB
+class DB implements BuilderBase
 {
 
-// implements BuilderBase
     use whereClause;
     use joinClause;
     use exceptionHandler;
