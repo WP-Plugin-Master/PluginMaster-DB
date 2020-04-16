@@ -95,20 +95,6 @@ interface BuilderBase
      */
     public function update($data);
 
-    /**
-     * @return mixed
-     */
-    public static function startTransaction();
-
-    /**
-     * @return mixed
-     */
-    public static function commitTransaction();
-
-    /**
-     * @return mixed
-     */
-    public static function rollbackTransaction();
 
     /**
      * @return mixed

@@ -3,24 +3,26 @@
 namespace PluginMaster\DB;
 
 use PluginMaster\DB\base\BuilderBase;
+use PluginMaster\DB\utilities\exceptionHandler;
+use PluginMaster\DB\utilities\othersClause;
+use PluginMaster\DB\utilities\selectClause;
+use PluginMaster\DB\utilities\whereClause;
+use PluginMaster\DB\utilities\joinClause;
 
-class DB implements BuilderBase
+class DB
 {
-    private static $instance;
-    public $whereValues = [];
-    private $table_prefix;
-    private $connection;
-    private $table;
-    private $whereClause = '';
-    private $orderQuery = '';
-    private $selectQuery = '*';
-    private $groupQuery = '';
-    private $closerSession = false;
-    private $closerCounter;
-    private $join;
-    private $sql;
-    private $joinClosure;
-    private $joinOn = '';
+
+// implements BuilderBase
+    use whereClause;
+    use joinClause;
+    use exceptionHandler;
+    use othersClause;
+    use selectClause;
+
+    protected $table;
+    protected $sql;
+    protected $table_prefix;
+    protected $connection;
 
     /**
      * DB constructor.
@@ -38,218 +40,33 @@ class DB implements BuilderBase
      */
     public static function table($name)
     {
-        $self = self::getInstance();
+        $self = (new self());
         $self->table = $self->table_prefix . $name;
         $self->whereValues = [];
-        $self->join = '';
         return $self;
     }
 
+
     /**
-     * @return DB
+     * @param $closer
+     * @return DB|void
      */
-    private static function getInstance()
+    public static function transaction($closer)
     {
-        if (self::$instance == null) {
-            self::$instance = new DB();
+        $self = new self;
+        try {
+            $self->connection->query('START TRANSACTION');
+
+            if ($closer instanceof \Closure) {
+                call_user_func($closer, $self);
+            }
+
+            $self->connection->query('COMMIT');
+            return $self;
+        } catch (\Exception $e) {
+            $self->connection->query('ROLLBACK');
+            return $self->exceptionHandler();
         }
-
-        return self::$instance;
-    }
-
-    /**
-     * @param $where
-     * @return false|int
-     */
-    public static function startTransaction()
-    {
-        return self::getInstance()->connection->query('START TRANSACTION');
-    }
-
-    /**
-     * @param $where
-     * @return false|int
-     */
-    public static function commitTransaction()
-    {
-        return self::getInstance()->connection->query('COMMIT');
-    }
-
-    /**
-     * @param $where
-     * @return false|int
-     */
-    public static function rollbackTransaction()
-    {
-        return self::getInstance()->connection->query('ROLLBACK');
-    }
-
-    /**
-     * @param $table
-     * @param $first
-     * @param null $operator
-     * @param null $second
-     * @return mixed|DB
-     */
-    public function join($table, $first, $operator = null, $second = null)
-    {
-        if ($first instanceof \Closure) {
-            $this->joinClosure = true;
-            $this->join .= ' INNER JOIN ' . $this->table_prefix . $table . ' ON ';
-            call_user_func($first, self::getInstance());
-            $this->join .= $this->joinOn;
-            $this->joinClosure = false;
-        } else {
-            $this->join .= ' INNER JOIN ' . $this->table_prefix . $table . ' ON ' . $first . ' ' . $operator . ' ' . $second . ' ';
-        }
-
-        return self::getInstance();
-    }
-
-    /**
-     * @param $table
-     * @param $first
-     * @param null $operator
-     * @param null $second
-     * @return mixed|DB
-     */
-    public function leftJoin($table, $first, $operator = null, $second = null)
-    {
-        if ($first instanceof \Closure) {
-            $this->joinClosure = true;
-            $this->join .= ' LEFT JOIN ' . $this->table_prefix . $table . ' ON ';
-            call_user_func($first, self::getInstance());
-            $this->join .= $this->joinOn;
-            $this->joinClosure = false;
-        } else {
-            $this->join .= ' LEFT JOIN ' . $this->table_prefix . $table . ' ON ' . $first . ' ' . $operator . ' ' . $second . ' ';
-        }
-
-        return self::getInstance();
-    }
-
-    /**
-     * @param $first
-     * @param $operator
-     * @param $second
-     * @return mixed
-     */
-    public function on($first, $operator, $second)
-    {
-        $this->joinOn .= ($this->joinOn ? ' AND ' : '') . $first . ' ' . $operator . ' ' . $second;
-        return self::$instance;
-    }
-
-    /**
-     * @param $first
-     * @param $operator
-     * @param $second
-     * @return mixed
-     */
-    public function orOn($first, $operator, $second)
-    {
-        $this->joinOn .= ($this->joinOn ? ' OR ' : '') . $first . ' ' . $operator . ' ' . $second;
-        return self::$instance;
-    }
-
-    /**
-     * @param $column
-     * @param null $operator
-     * @param null $value
-     * @return mixed
-     */
-    public function onWhere($column, $operator = null, $value = null)
-    {
-        if (!$value) {
-            $value = $operator;
-            $operator = ' = ';
-        }
-
-        $this->joinOn .= ($this->joinOn ? ' AND ' : '') . $column . ' ' . $operator . ' %s ';
-        array_push($this->whereValues, (string)$value);
-        return self::$instance;
-    }
-
-    /**
-     * @param $column
-     * @param null $operator
-     * @param null $value
-     * @return DB
-     */
-    public function where($column, $operator = null, $value = null)
-    {
-
-        $finalOperator = $value ? $operator : '=';
-        $finalValue = $value ? $value : $operator;
-
-        if ($column instanceof \Closure) {
-            $this->closerSession = true;
-            $this->closerCounter = 1;
-            $this->whereClause .= ($this->whereClause ? ' AND (' : ' where (');
-            call_user_func($column, self::getInstance());
-            $this->whereClause .= ')';
-            $this->closerSession = false;
-            $this->closerCounter = 0;
-        } else {
-            $this->whereClause .= $this->closerSession && $this->closerCounter == 1 ? '' : ($this->whereClause ? ' AND ' : ' where ');
-            $this->whereClause .= '`' . $column . '` ' . $finalOperator . ' %s';
-            array_push($this->whereValues, (string)$finalValue);
-            $this->closerCounter++;
-        }
-        return self::getInstance();
-    }
-
-    /**
-     * @param $column
-     * @param null $operator
-     * @param null $value
-     * @return DB
-     */
-    public function orWhere($column, $operator = null, $value = null)
-    {
-        $finalOperator = $value ? $operator : '=';
-        $finalValue = $value ? $value : $operator;
-
-        $finalOperator = $value ? $operator : '=';
-        $finalValue = $value ? $value : $operator;
-
-        if ($column instanceof \Closure) {
-            $this->closerSession = true;
-            $this->closerCounter = 1;
-            $this->whereClause .= ($this->whereClause ? ' OR (' : ' where (');
-            call_user_func($column, self::getInstance());
-            $this->whereClause .= ')';
-            $this->closerSession = false;
-            $this->closerCounter = 0;
-        } else {
-            $this->whereClause .= $this->closerSession && $this->closerCounter == 1 ? '' : ($this->whereClause ? ' OR ' : ' where ');
-            $this->whereClause .= '`' . $column . '` ' . $finalOperator . ' %s';
-            array_push($this->whereValues, (string)$finalValue);
-            $this->closerCounter++;
-        }
-
-        return self::getInstance();
-    }
-
-    /**
-     * @param $columns
-     * @param $direction
-     * @return DB
-     */
-    public function orderBy($columns, $direction)
-    {
-        $this->orderQuery = " ORDER BY `" . $columns . "` " . $direction;
-        return self::getInstance();
-    }
-
-    /**
-     * @param $fields
-     * @return DB
-     */
-    public function select($fields)
-    {
-        $this->selectQuery = " " . $fields . " ";
-        return self::getInstance();
     }
 
     /**
@@ -272,9 +89,16 @@ class DB implements BuilderBase
 
         $sql = $this->getPreparedSql();
 
-        $insert = $this->connection->query($sql);
+        try {
+            $insert = $this->connection->query($sql);
+            if ($this->connection->last_error) {
+                throw new \Exception("Error");
+            }
+            return $this->connection->insert_id;
+        } catch (\Exception $e) {
+            $this->exceptionHandler();
+        }
 
-        return $this->connection->insert_id;
     }
 
     /**
@@ -298,7 +122,6 @@ class DB implements BuilderBase
         $prevWhereValues = $this->whereValues;
         $this->whereValues = [];
         foreach ($data as $key => $value) {
-
             $fields .= '`' . $key . '` = %s,';
             array_push($this->whereValues, $value);
         }
@@ -309,7 +132,15 @@ class DB implements BuilderBase
 
         $sql = $this->getPreparedSql();
 
-        return $this->connection->query($sql);
+        try {
+            $update = $this->connection->query($sql);
+            if ($this->connection->last_error) {
+                throw new \Exception("Error");
+            }
+            return $update;
+        } catch (\Exception $e) {
+            $this->exceptionHandler();
+        }
     }
 
     /**
@@ -321,7 +152,16 @@ class DB implements BuilderBase
 
         $this->sql = "DELETE FROM `" . $this->table . '` ' . $this->whereClause;
         $sql = $this->getPreparedSql();
-        return $this->connection->query($sql);
+        try {
+            $delete = $this->connection->query($sql);
+            if ($delete === false) {
+                throw new \Exception("Error");
+            }
+            return $delete;
+        } catch (\Exception $e) {
+            $this->exceptionHandler();
+        }
+
     }
 
     /**
@@ -330,7 +170,15 @@ class DB implements BuilderBase
     public function first()
     {
         $this->getSelectQuery();
-        return $this->connection->get_row($this->getPreparedSql(), OBJECT);
+        try {
+            $first = $this->connection->get_row($this->getPreparedSql(), OBJECT);
+            if ($this->connection->last_error) {
+                throw new \Exception("Error");
+            }
+            return $first;
+        } catch (\Exception $e) {
+            $this->exceptionHandler();
+        }
     }
 
     /**
@@ -338,7 +186,7 @@ class DB implements BuilderBase
      */
     private function getSelectQuery()
     {
-        $this->sql = "SELECT " . $this->selectQuery . " FROM $this->table " . $this->join . $this->whereClause . $this->groupQuery . $this->orderQuery;
+        $this->sql = "SELECT " . $this->selectQuery . " FROM $this->table " . $this->join . $this->whereClause . $this->groupQuery . $this->orderQuery.$this->limitQuery.$this->offsetQuery;
         return $this->sql;
     }
 
