@@ -2,10 +2,10 @@
 
 namespace PluginMaster\DB;
 
-use PluginMaster\DB\base\BuilderBase;
+use PluginMaster\Contracts\DB\DB as DBContract;
 use PluginMaster\DB\exception\ExceptionHandler;
 
-class DB implements BuilderBase
+class DB implements DBContract
 {
 
     use ExceptionHandler;
@@ -69,7 +69,7 @@ class DB implements BuilderBase
             return $self;
         } catch (\Exception $e) {
             $self->connection->query('ROLLBACK');
-            return $self->exceptionHandler();
+            $self->exceptionHandler();
         }
     }
 

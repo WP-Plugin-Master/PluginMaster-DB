@@ -2,10 +2,10 @@
   "name": "plugin-master/db",
   "description": "The query builder for WordPress",
   "license": "MIT",
-  "homepage": "https://github.com/emrancu/PluginMaster-DB",
+  "homepage": "https://github.com/WP-Plugin-Master/PluginMaster-DB",
   "support": {
-    "issues": "https://github.com/emrancu/PluginMaster-DB/issues",
-    "source": "https://github.com/emrancu/PluginMaster-DB"
+    "issues": "https://github.com/WP-Plugin-Master/PluginMaster-DB/issues",
+    "source": "https://github.com/WP-Plugin-Master/PluginMaster-DB"
   },
   "authors": [
     {
@@ -27,7 +27,8 @@
     }
   },
   "require": {
-    "php": ">=7.0.0"
+    "php": "^7.0|^8.0",
+    "plugin-master/contracts": "^1.0"
   },
   "minimum-stability": "dev",
   "prefer-stable": true
