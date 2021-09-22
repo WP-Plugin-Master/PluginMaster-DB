@@ -2,10 +2,10 @@
 
 namespace PluginMaster\DB;
 
-use PluginMaster\Contracts\DB\DB as DBContract;
+use PluginMaster\Contracts\DB\DBInterface;
 use PluginMaster\DB\exception\ExceptionHandler;
 
-class DB implements DBContract
+class DB implements DBInterface
 {
 
     use ExceptionHandler;
