@@ -87,7 +87,7 @@ class DB implements DBInterface
      * @param  string|null  $second
      * @return DB
      */
-    public function join(string $table, string|Closure $first, ?string $operator = null, ?string $second = null): self
+    public function join(string $table, $first, ?string $operator = null, ?string $second = null): self
     {
         if ($first instanceof \Closure) {
             $this->joinClosure = true;
@@ -108,7 +108,7 @@ class DB implements DBInterface
      * @param  string|null  $second
      * @return DB
      */
-    public function leftJoin(string $table, string|Closure $first, ?string $operator = null, ?string $second = null): self
+    public function leftJoin(string $table, $first, ?string $operator = null, ?string $second = null): self
     {
         if ($first instanceof \Closure) {
             $this->joinClosure = true;
@@ -148,12 +148,12 @@ class DB implements DBInterface
     }
 
     /**
-     * @param  string  $column
-     * @param  string|null  $operator
-     * @param  null  $value
+     * @param string $column
+     * @param string|null $operator
+     * @param mixed|null $value
      * @return mixed
      */
-    public function onWhere(string $column, ?string $operator = null, mixed $value = null): self
+    public function onWhere(string $column, ?string $operator = null, $value = null): self
     {
         if (!$value) {
             $value = $operator;
@@ -169,10 +169,10 @@ class DB implements DBInterface
     /**
      * @param  string|Closure  $column
      * @param  string|null  $operator
-     * @param  null  $value
+     * @param  mixed|null  $value
      * @return DB
      */
-    public function where(string|Closure $column, ?string $operator = null, mixed $value = null): self
+    public function where($column, ?string $operator = null, $value = null): self
     {
         $finalOperator = $value ? $operator : '=';
         $finalValue = $value ? $value : $operator;
@@ -196,12 +196,12 @@ class DB implements DBInterface
     }
 
     /**
-     * @param  string  $column
-     * @param  string|null  $operator
-     * @param  null  $value
+     * @param string $column
+     * @param string|null $operator
+     * @param mixed|null $value
      * @return DB
      */
-    public function orWhere(string|Closure $column, ?string $operator = null, mixed $value = null): self
+    public function orWhere($column, ?string $operator = null, $value = null): self
     {
         $finalOperator = $value ? $operator : '=';
         $finalValue = $value ? $value : $operator;
@@ -256,10 +256,10 @@ class DB implements DBInterface
 
 
     /**
-     * @param  string|int  $number
+     * @param  int  $number
      * @return DB
      */
-    public function offset(string|int $number): self
+    public function offset(int $number): self
     {
         $this->offsetQuery = " OFFSET $number ";
         return $this;
@@ -278,10 +278,10 @@ class DB implements DBInterface
     }
 
     /**
-     * @param  string|int  $column
+     * @param  string  $column
      * @return DB
      */
-    public function groupBy(string|int $column): self
+    public function groupBy(string $column): self
     {
         $this->orderQuery = " GROUP BY " . $column . " ";
         return $this;
@@ -307,13 +307,14 @@ class DB implements DBInterface
             $this->exceptionHandler();
         }
 
+        return null;
     }
 
 
     /**
      * @param  array  $data
      */
-    private function buildInsertQuery(array $data)
+    private function buildInsertQuery(array $data): void
     {
         $fields = '';
         $values = '';
@@ -328,8 +329,6 @@ class DB implements DBInterface
     }
 
     /**
-     * @param $query
-     * @param $values
      * @return string|void
      */
     protected function getPreparedSql()
@@ -342,7 +341,7 @@ class DB implements DBInterface
      * @param  array  $data
      * @return bool|int|null
      */
-    public function update(array $data): bool|int|null
+    public function update(array $data): ?int
     {
         $this->buildUpdateQuery($data);
 
@@ -357,6 +356,8 @@ class DB implements DBInterface
         } catch (\Exception $e) {
             $this->exceptionHandler();
         }
+
+        return null;
     }
 
 
@@ -382,7 +383,7 @@ class DB implements DBInterface
     /**
      * @return bool|int|null
      */
-    public function delete(): bool|int|null
+    public function delete(): ?int
     {
         $this->sql = "DELETE FROM `" . $this->table . '` ' . $this->whereClause;
         $sql = $this->getPreparedSql();
@@ -395,12 +396,14 @@ class DB implements DBInterface
         } catch (\Exception $e) {
             $this->exceptionHandler();
         }
+
+        return null;
     }
 
     /**
      * @return object|null
      */
-    public function first(): object|null
+    public function first(): ?object
     {
         $this->getSelectQuery();
         try {
@@ -417,18 +420,17 @@ class DB implements DBInterface
     }
 
     /**
-     * @return string
+     * @return void
      */
-    private function getSelectQuery()
+    private function getSelectQuery(): void
     {
         $this->sql = "SELECT " . $this->selectQuery . " FROM $this->table " . $this->join . $this->whereClause . $this->groupQuery . $this->orderQuery . $this->limitQuery . $this->offsetQuery;
-        return $this->sql;
     }
 
     /**
      * @return array|object|null
      */
-    public function get(): array|object|null
+    public function get(): ?object
     {
         $this->getSelectQuery();
         return $this->connection->get_results($this->getPreparedSql());
@@ -439,6 +441,10 @@ class DB implements DBInterface
      */
     public function toSql(): string
     {
-        return $this->sql ? $this->sql : $this->getSelectQuery();
+        if(!$this->sql){
+            $this->getSelectQuery();
+        }
+
+        return $this->sql;
     }
 }
