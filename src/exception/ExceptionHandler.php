@@ -17,6 +17,4 @@ trait ExceptionHandler
         exit;
     }
 
-
-
 }

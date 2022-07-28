@@ -2,6 +2,7 @@
 
 namespace PluginMaster\DB;
 
+use Closure;
 use PluginMaster\Contracts\DB\DBInterface;
 use PluginMaster\DB\exception\ExceptionHandler;
 
@@ -10,22 +11,22 @@ class DB implements DBInterface
 
     use ExceptionHandler;
 
-    protected $table;
-    protected $sql;
-    protected $table_prefix;
-    protected $connection;
-    protected $whereValues = [];
-    protected $whereClause = '';
-    protected $closerCounter;
-    protected $closerSession = false;
-    protected $selectQuery = ' * ';
-    protected $orderQuery = '';
-    protected $groupQuery = '';
-    protected $limitQuery = '';
-    protected $offsetQuery = '';
-    protected $join;
-    protected $joinClosure;
-    protected $joinOn = '';
+    protected string $table;
+    protected string $sql;
+    protected string $table_prefix;
+    protected \wpdb $connection;
+    protected array $whereValues = [];
+    protected string $whereClause = '';
+    protected int $closerCounter;
+    protected bool $closerSession = false;
+    protected string $selectQuery = ' * ';
+    protected string $orderQuery = '';
+    protected string $groupQuery = '';
+    protected string $limitQuery = '';
+    protected string $offsetQuery = '';
+    protected string $join;
+    protected bool $joinClosure;
+    protected string $joinOn = '';
 
 
     /**
@@ -38,11 +39,7 @@ class DB implements DBInterface
         $this->connection = $wpdb;
     }
 
-    /**
-     * @param $name
-     * @return DB
-     */
-    public static function table($name)
+    public static function table(string $name): self
     {
         $self = (new self());
         $self->table = $self->table_prefix . $name;
@@ -52,18 +49,16 @@ class DB implements DBInterface
 
 
     /**
-     * @param $closer
+     * @param  Closure  $closer
      * @return DB|void
      */
-    public static function transaction($closer)
+    public static function transaction(Closure $closer): ?self
     {
         $self = new self;
         try {
             $self->connection->query('START TRANSACTION');
 
-            if ($closer instanceof \Closure) {
-                call_user_func($closer, $self);
-            }
+            call_user_func($closer, $self);
 
             $self->connection->query('COMMIT');
             return $self;
@@ -75,10 +70,10 @@ class DB implements DBInterface
 
 
     /**
-     * @param $fields
+     * @param  string  $fields
      * @return DB
      */
-    public function select($fields)
+    public function select(string $fields): self
     {
         $this->selectQuery = " " . $fields . " ";
         return $this;
@@ -86,13 +81,13 @@ class DB implements DBInterface
 
 
     /**
-     * @param $table
-     * @param $first
-     * @param null $operator
-     * @param null $second
-     * @return mixed|DB
+     * @param  string  $table
+     * @param  string|Closure  $first
+     * @param  string|null  $operator
+     * @param  string|null  $second
+     * @return DB
      */
-    public function join($table, $first, $operator = null, $second = null)
+    public function join(string $table, string|Closure $first, ?string $operator = null, ?string $second = null): self
     {
         if ($first instanceof \Closure) {
             $this->joinClosure = true;
@@ -107,13 +102,13 @@ class DB implements DBInterface
     }
 
     /**
-     * @param $table
-     * @param $first
-     * @param null $operator
-     * @param null $second
-     * @return mixed|DB
+     * @param  string  $table
+     * @param  string|Closure  $first
+     * @param  string|null  $operator
+     * @param  string|null  $second
+     * @return DB
      */
-    public function leftJoin($table, $first, $operator = null, $second = null)
+    public function leftJoin(string $table, string|Closure $first, ?string $operator = null, ?string $second = null): self
     {
         if ($first instanceof \Closure) {
             $this->joinClosure = true;
@@ -129,36 +124,36 @@ class DB implements DBInterface
     }
 
     /**
-     * @param $first
-     * @param $operator
-     * @param $second
+     * @param  string  $first
+     * @param  string  $operator
+     * @param  string  $second
      * @return mixed
      */
-    public function on($first, $operator, $second)
+    public function on(string $first, string $operator, string $second): self
     {
         $this->joinOn .= ($this->joinOn ? ' AND ' : '') . $first . ' ' . $operator . ' ' . $second;
         return $this;
     }
 
     /**
-     * @param $first
-     * @param $operator
-     * @param $second
+     * @param  string  $first
+     * @param  string  $operator
+     * @param  string  $second
      * @return mixed
      */
-    public function orOn($first, $operator, $second)
+    public function orOn(string $first, string $operator, string $second): self
     {
         $this->joinOn .= ($this->joinOn ? ' OR ' : '') . $first . ' ' . $operator . ' ' . $second;
         return $this;
     }
 
     /**
-     * @param $column
-     * @param null $operator
-     * @param null $value
+     * @param  string  $column
+     * @param  string|null  $operator
+     * @param  null  $value
      * @return mixed
      */
-    public function onWhere($column, $operator = null, $value = null)
+    public function onWhere(string $column, ?string $operator = null, mixed $value = null): self
     {
         if (!$value) {
             $value = $operator;
@@ -166,24 +161,23 @@ class DB implements DBInterface
         }
 
         $this->joinOn .= ($this->joinOn ? ' AND ' : '') . $column . ' ' . $operator . ' %s ';
-        array_push($this->whereValues, (string)$value);
+        $this->whereValues[] = (string) $value;
         return $this;
     }
 
 
     /**
-     * @param $column
-     * @param null $operator
-     * @param null $value
+     * @param  string|Closure  $column
+     * @param  string|null  $operator
+     * @param  null  $value
      * @return DB
      */
-    public function where($column, $operator = null, $value = null)
+    public function where(string|Closure $column, ?string $operator = null, mixed $value = null): self
     {
-
         $finalOperator = $value ? $operator : '=';
         $finalValue = $value ? $value : $operator;
 
-        if ($column instanceof \Closure) {
+        if ($column instanceof Closure) {
             $this->closerSession = true;
             $this->closerCounter = 1;
             $this->whereClause .= ($this->whereClause ? ' AND (' : ' where (');
@@ -194,24 +188,25 @@ class DB implements DBInterface
         } else {
             $this->whereClause .= $this->closerSession && $this->closerCounter == 1 ? '' : ($this->whereClause ? ' AND ' : ' where ');
             $this->whereClause .= '`' . $column . '` ' . $finalOperator . ' %s';
-            array_push($this->whereValues, (string)$finalValue);
+            $this->whereValues[] = (string) $finalValue;
             $this->closerCounter++;
         }
+
         return $this;
     }
 
     /**
-     * @param $column
-     * @param null $operator
-     * @param null $value
+     * @param  string  $column
+     * @param  string|null  $operator
+     * @param  null  $value
      * @return DB
      */
-    public function orWhere($column, $operator = null, $value = null)
+    public function orWhere(string|Closure $column, ?string $operator = null, mixed $value = null): self
     {
         $finalOperator = $value ? $operator : '=';
         $finalValue = $value ? $value : $operator;
 
-        if ($column instanceof \Closure) {
+        if ($column instanceof Closure) {
             $this->closerSession = true;
             $this->closerCounter = 1;
             $this->whereClause .= ($this->whereClause ? ' OR (' : ' where (');
@@ -222,7 +217,7 @@ class DB implements DBInterface
         } else {
             $this->whereClause .= $this->closerSession && $this->closerCounter == 1 ? '' : ($this->whereClause ? ' OR ' : ' where ');
             $this->whereClause .= '`' . $column . '` ' . $finalOperator . ' %s';
-            array_push($this->whereValues, (string)$finalValue);
+            $this->whereValues[] = (string) $finalValue;
             $this->closerCounter++;
         }
 
@@ -250,10 +245,10 @@ class DB implements DBInterface
 
 
     /**
-     * @param $number
+     * @param  string|int  $number
      * @return $this
      */
-    public function limit($number)
+    public function limit(string|int $number): self
     {
         $this->limitQuery = " LIMIT $number ";
         return $this;
@@ -261,10 +256,10 @@ class DB implements DBInterface
 
 
     /**
-     * @param $number
-     * @return $this
+     * @param  string|int  $number
+     * @return DB
      */
-    public function offset($number)
+    public function offset(string|int $number): self
     {
         $this->offsetQuery = " OFFSET $number ";
         return $this;
@@ -272,39 +267,38 @@ class DB implements DBInterface
 
 
     /**
-     * @param $columns | columns with comma separator
-     * @param $direction
+     * @param  string  $columns  | columns with comma separator
+     * @param  string  $direction
      * @return DB
      */
-    public function orderBy($columns, $direction)
+    public function orderBy(string $columns, string $direction): self
     {
         $this->orderQuery = " ORDER BY " . $columns . " " . $direction;
         return $this;
     }
 
     /**
-     * @param $columns | columns with comma separator
-     * @param $direction
+     * @param  string|int  $column
      * @return DB
      */
-    public function groupBy($columns)
+    public function groupBy(string|int $column): self
     {
-        $this->orderQuery = " GROUP BY " . $columns . " ";
+        $this->orderQuery = " GROUP BY " . $column . " ";
         return $this;
     }
 
 
     /**
-     * @param $data
-     * @return false|int
+     * @param  array  $data
+     * @return int|null
      */
-    public function insert($data)
+    public function insert(array $data): ?int
     {
         $this->buildInsertQuery($data);
         $sql = $this->getPreparedSql();
 
         try {
-            $insert = $this->connection->query($sql);
+            $this->connection->query($sql);
             if ($this->connection->last_error) {
                 throw new \Exception("Error");
             }
@@ -317,9 +311,9 @@ class DB implements DBInterface
 
 
     /**
-     * @param $data
+     * @param  array  $data
      */
-    private function buildInsertQuery($data)
+    private function buildInsertQuery(array $data)
     {
         $fields = '';
         $values = '';
@@ -327,7 +321,7 @@ class DB implements DBInterface
         foreach ($data as $key => $value) {
             $fields .= '`' . $key . '`,';
             $values .= '%s,';
-            array_push($this->whereValues, $value);
+            $this->whereValues[] = $value;
         }
 
         $this->sql = "INSERT INTO `" . $this->table . "` (" . substr($fields, 0, -1) . ") VALUES(" . substr($values, 0, -1) . ")";
@@ -345,11 +339,10 @@ class DB implements DBInterface
 
 
     /**
-     * @param $data
-     * @param $where
-     * @return false|int
+     * @param  array  $data
+     * @return bool|int|null
      */
-    public function update($data)
+    public function update(array $data): bool|int|null
     {
         $this->buildUpdateQuery($data);
 
@@ -358,7 +351,7 @@ class DB implements DBInterface
         try {
             $update = $this->connection->query($sql);
             if ($this->connection->last_error) {
-                throw new \Exception("Error");
+                throw new \Exception("Error to update table");
             }
             return $update;
         } catch (\Exception $e) {
@@ -368,16 +361,16 @@ class DB implements DBInterface
 
 
     /**
-     * @param $data
+     * @param  array  $data
      */
-    private function buildUpdateQuery($data)
+    private function buildUpdateQuery(array $data): void
     {
         $fields = '';
         $prevWhereValues = $this->whereValues;
         $this->whereValues = [];
         foreach ($data as $key => $value) {
             $fields .= '`' . $key . '` = %s,';
-            array_push($this->whereValues, $value);
+            $this->whereValues[] = $value;
         }
 
         $this->whereValues = array_merge($this->whereValues, $prevWhereValues);
@@ -387,12 +380,10 @@ class DB implements DBInterface
 
 
     /**
-     * @param $where
-     * @return false|int
+     * @return bool|int|null
      */
-    public function delete()
+    public function delete(): bool|int|null
     {
-
         $this->sql = "DELETE FROM `" . $this->table . '` ' . $this->whereClause;
         $sql = $this->getPreparedSql();
         try {
@@ -404,13 +395,12 @@ class DB implements DBInterface
         } catch (\Exception $e) {
             $this->exceptionHandler();
         }
-
     }
 
     /**
-     * @return array|object|void|null
+     * @return object|null
      */
-    public function first()
+    public function first(): object|null
     {
         $this->getSelectQuery();
         try {
@@ -422,6 +412,8 @@ class DB implements DBInterface
         } catch (\Exception $e) {
             $this->exceptionHandler();
         }
+
+        return null;
     }
 
     /**
@@ -436,7 +428,7 @@ class DB implements DBInterface
     /**
      * @return array|object|null
      */
-    public function get()
+    public function get(): array|object|null
     {
         $this->getSelectQuery();
         return $this->connection->get_results($this->getPreparedSql());
@@ -445,7 +437,7 @@ class DB implements DBInterface
     /**
      * @return string
      */
-    public function toSql()
+    public function toSql(): string
     {
         return $this->sql ? $this->sql : $this->getSelectQuery();
     }
