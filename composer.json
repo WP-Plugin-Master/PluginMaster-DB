@@ -27,7 +27,7 @@
     }
   },
   "require": {
-    "php": "^7.0|^8.0",
+    "php": "^7.4|^8.0",
     "plugin-master/contracts": "^1.0"
   },
   "minimum-stability": "dev",
