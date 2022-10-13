@@ -11,9 +11,9 @@ class DB implements DBInterface
 
     use ExceptionHandler;
 
-    protected string $table;
-    protected string $sql;
-    protected string $table_prefix;
+    protected string $table = '';
+    protected string $sql = '';
+    protected string $table_prefix = '';
     protected \wpdb $connection;
     protected array $whereValues = [];
     protected string $whereClause = '';
@@ -24,8 +24,8 @@ class DB implements DBInterface
     protected string $groupQuery = '';
     protected string $limitQuery = '';
     protected string $offsetQuery = '';
-    protected string $join;
-    protected bool $joinClosure;
+    protected string $join = '';
+    protected bool $joinClosure = false;
     protected string $joinOn = '';
 
 
