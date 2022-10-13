@@ -17,7 +17,7 @@ class DB implements DBInterface
     protected \wpdb $connection;
     protected array $whereValues = [];
     protected string $whereClause = '';
-    protected int $closerCounter;
+    protected int $closerCounter = 0;
     protected bool $closerSession = false;
     protected string $selectQuery = ' * ';
     protected string $orderQuery = '';
